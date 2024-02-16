@@ -1,0 +1,126 @@
+{
+  "guid" : "49C65CB6-F9FA-4E3C-B8BE-4A141E4E0F07",
+  "name": "Gaussian Filter",
+  "categories": ["Toolkit/Get Started", "Toolkit/oneAPI Direct Programming/C++SYCL/Dense Linear Algebra"],
+  "description": "This sample applies a Gaussian Filter to an image using SYCL",
+  "toolchain": ["icpx"],
+  "languages": [{"cpp": {"properties": {"projectOptions": [{"projectType": "makefile"}]}}}],
+  "targetDevice": ["CPU", "GPU", "FPGA"],
+  "os": ["linux", "windows"],
+  "builder": ["ide", "make"],
+  "ciTests": {
+    "linux": [
+      {
+        "id": "usm",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake .. -DUSM=1",
+          "make cpu-gpu",
+          "./gaussian-usm",
+          "make clean"
+        ]
+      },
+      {
+        "id": "buffers",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake ..",
+          "make cpu-gpu",
+          "./gaussian-buffers",
+          "make clean"
+        ]
+      },
+      {
+        "id": "fpga_emu_buffers",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake ..",
+          "make fpga_emu",
+          "./gaussian-buffers.fpga_emu",
+          "make clean"
+        ]
+      },
+      {
+        "id": "fpga_emu_usm",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake .. -DUSM=1",
+          "make fpga_emu",
+          "./gaussian-usm.fpga_emu",
+          "make clean"
+        ]
+      },
+      {
+        "id": "fpga_report_buffers",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake ..",
+          "make report",
+          "make clean"
+        ]
+      },
+      {
+        "id": "fpga_report_usm",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake .. -DUSM=1",
+          "make report",
+          "make clean"
+        ]
+      }
+    ],
+    "windows": [
+      {
+        "id": "usm",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake -G \"NMake Makefiles\" .. -DUSM=1",
+          "nmake cpu-gpu",
+          "gaussian-usm.exe",
+          "nmake clean"
+        ]
+      },
+      {
+        "id": "buffers",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake -G \"NMake Makefiles\" ..",
+          "nmake cpu-gpu",
+          "gaussian-buffers.exe",
+          "nmake clean"
+        ]
+      },
+      {
+        "id": "fpga_emu_buffers",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake -G \"NMake Makefiles\" ..",
+          "nmake fpga_emu",
+          "gaussian-buffers.fpga_emu.exe",
+          "nmake clean"
+        ]
+      },
+      {
+        "id": "fpga_emu_usm",
+        "steps": [
+          "mkdir build",
+          "cd build",
+          "cmake -G \"NMake Makefiles\" -DUSM=1 ..",
+          "nmake fpga_emu",
+          "gaussian-usm.fpga_emu.exe",
+          "nmake clean"
+        ]
+      }
+    ]
+  },
+  "expertise": "Getting Started"
+}
