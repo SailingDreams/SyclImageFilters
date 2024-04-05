@@ -259,33 +259,6 @@ void convertToUint8(queue &q,
     terminate();
   }
 }
-//************************************
-// Iota in SYCL on device.
-//************************************
-void IotaParallel(queue &q, IntArray &a_array, int value) {
-  // Create the range object for the array managed by the buffer.
-  range num_items{a_array.size()};
-
-  // Create buffer that hold the data shared between the host and the devices.
-  // The buffer destructor is responsible to copy the data back to host when it
-  // goes out of scope.
-  buffer a_buf(a_array);
-
-  // Submit a command group to the queue by a lambda function that contains the
-  // data access permission and device computation (kernel).
-  q.submit([&](auto &h) {
-    // Create an accessor with write permission.
-    accessor a(a_buf, h, write_only, no_init);
-
-    // Use parallel_for to populate consecutive numbers starting with a
-    // specified value in parallel on device. This executes the kernel.
-    //    1st parameter is the number of work items to use.
-    //    2nd parameter is the kernel, a lambda that specifies what to do per
-    //    work item. The parameter of the lambda is the work item id.
-    // SYCL supports unnamed lambda kernel by default.
-    h.parallel_for(num_items, [=](auto i) { a[i] = value + i; });
-  });
-}
 
 //**************************************************************************
 // Demonstrate iota both sequential on CPU and parallel on device.
@@ -347,28 +320,13 @@ int main() {
   // Target to hold grayscale image. This constructor indicates that the memory should be allocated by the runtime
   vector<float> fl_grayscale(width * height);
 
-  // Create array objects with "array_size" to store data.
-  IntArray sequential, parallel;
-  cout << "sequential IntArray size = " << sequential.size() << std::endl;
-  constexpr int value = 100000;
-  // Sequential iota.
-  for (size_t i = 0; i < sequential.size(); i++) sequential[i] = value + i;
-
   { // Set scope for SYCL buffers
+
     // Create sycl buffer for the input image
     buffer<uint8_t, 1> u8_image_in_buffer{u8_image_in, width * height * channels};
-    //array<float, 512 * 512> fl_grayscale1;
+    // Create sycl buffer for the grayscale image
     buffer<float, 1> fl_grayscale_buffer{fl_grayscale.data(),width * height};
 
-    // initialize to zero (could use memset instead)
-    for(int i = 0; i < u8_image_out.size(); i++)
-    {
-      if(u8_image_out[i] != 0) 
-      {
-        cout << "u8_image_out[" << i << "] = " << u8_image_out[i] << std::endl; 
-      }
-      //u8_image_out[i] = 0;
-    }
     //buffer<uint8_t, 1> u8_image_out_buffer{u8_image_out.data(), width * height};
     buffer u8_image_out_buffer(u8_image_out);
 
@@ -383,7 +341,6 @@ int main() {
       // Print out the device information used for the kernel code.
       cout << "Running on device: "
           << sycl_que.get_device().get_info<info::device::name>() << "\n";
-      cout << "Array size: " << parallel.size() << "\n";
       
       #ifdef USE_SYCL
         cout << "Using SYCL" << std::endl;
@@ -394,8 +351,7 @@ int main() {
         //initUint8SyclBuffer1(sycl_que, u8_image_out_buffer, width, height, (uint8_t)128);
 
       #endif
-      // Parallel iota in SYCL.
-      IotaParallel(sycl_que, parallel, value);
+
     } catch (std::exception const &e) {
       cout << "An exception is caught while computing IotaParallel on device:  " << e.what() << std::endl;
       terminate();
@@ -404,6 +360,7 @@ int main() {
   } // End scope for SYCL buffers - causes synchronization with host.
   
   #ifndef USE_SYCL
+    this line is here to create a compile error if USE_SYCL is undefined
     cout << "Running C++ version" << std::endl;
     convertToGrayscaleCpp(u8_image_in, fl_grayscale, width, height);
 
@@ -411,30 +368,11 @@ int main() {
     cout << "Done running C++" << std::endl;
   #endif
 
- 
-
-  // Verify two results are equal.
-  cout << "Verify two results are equal." << std::endl;
-  for (size_t i = 0; i < sequential.size(); i++) {
-    if (parallel[i] != sequential[i]) {
-      cout << "Failed on device.\n";
-      return -1;
-    }
-  }
-
-  int indices[]{0, 1, 2, (sequential.size() - 1)};
-  constexpr size_t indices_size = sizeof(indices) / sizeof(int);
-
-  // Print out iota result.
-  cout << "Print out iota result." << std::endl;
-  for (int i = 0; i < indices_size; i++) {
-    int j = indices[i];
-    if (i == indices_size - 1) cout << "...\n";
-    cout << "[" << j << "]: " << j << " + " << value << " = "
-         << parallel[j] << "\n";
-  }
+  // Print out some image values
+  cout << "Greyscale image in float" << std::endl;
   for(int i = 0; i < 10; i++) { cout << fl_grayscale[i] << ", ";}
   cout << std::endl;
+  cout << "Greyscale image in uint8" << std::endl;
   for(int i = 0; i < 10; i++) { cout << (int)u8_image_out[i] << ", ";}
   cout << std::endl;
 
