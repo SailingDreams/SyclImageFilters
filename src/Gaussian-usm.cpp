@@ -73,19 +73,7 @@ void IotaParallel(queue &q, int *a, size_t size, int value) {
 //************************************
 int main() {
   // Create device selector for the device of your interest.
-#if FPGA_EMULATOR
-  // Intel extension: FPGA emulator selector on systems without FPGA card.
-  auto selector = sycl::ext::intel::fpga_emulator_selector_v;
-#elif FPGA_SIMULATOR
-  // Intel extension: FPGA simulator selector on systems without FPGA card.
-  auto selector = sycl::ext::intel::fpga_simulator_selector_v;
-#elif FPGA_HARDWARE
-  // Intel extension: FPGA selector on systems with FPGA card.
-  auto selector = sycl::ext::intel::fpga_selector_v;
-#else
-  // The default device selector will select the most performant device.
   auto selector = default_selector_v;
-#endif
 
   constexpr int value = 100000;
 
