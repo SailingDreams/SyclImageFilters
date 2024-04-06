@@ -137,6 +137,8 @@ int main() {
     // Create sycl buffer for the grayscale image
     buffer<float, 1> fl_grayscale_buffer{fl_grayscale.data(),width * height};
 
+    buffer<float, 1> fl_sobel_img_buffer{width * height};
+
     //buffer<uint8_t, 1> u8_image_out_buffer{u8_image_out.data(), width * height};
     buffer u8_image_out_buffer(u8_image_out);
 
@@ -156,7 +158,11 @@ int main() {
         cout << "Using SYCL" << std::endl;
         ConvertToGrayscaleBuffer(sycl_que, u8_image_in_buffer, fl_grayscale_buffer, width, height);
 
-        ConvertToUint8Buffer(sycl_que, fl_grayscale_buffer, u8_image_out_buffer, width, height);
+        SobelFilter(sycl_que, fl_grayscale_buffer, fl_sobel_img_buffer,
+                    width, height);
+
+        ConvertToUint8Buffer(sycl_que, fl_sobel_img_buffer, u8_image_out_buffer, width, height);
+        //ConvertToUint8Buffer(sycl_que, fl_grayscale_buffer, u8_image_out_buffer, width, height);
         //initUint8SyclBuffer(sycl_que, u8_image_out, width, height, (uint8_t)128);
         //initUint8SyclBuffer1(sycl_que, u8_image_out_buffer, width, height, (uint8_t)128);
 
