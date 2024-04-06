@@ -8,7 +8,10 @@ if(DEFINED USM AND (NOT(USM EQUAL 0)))
     set(SOURCE_FILE gaussian-usm.cpp)
     set(TARGET_NAME gaussian-usm)
 else()
-    set(SOURCE_FILE gaussian-buffers.cpp)
+    set(SOURCE_FILE imageUtilsAgnostic.cpp  
+                    imageUtilsUsingCpp.cpp 
+                    imageUtilsUsingBuffers.cpp 
+                    gaussian-buffers.cpp )
     set(TARGET_NAME gaussian-buffers)
 endif()
 

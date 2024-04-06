@@ -29,6 +29,8 @@
 #include <cstring>
 #include <malloc.h>
 #include <windows.h> 
+#include "imageUtilsAgnostic.h"
+#include "imageUtilsUsingBuffers.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -67,198 +69,6 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 // Array type and data size for this example.
 constexpr size_t array_size = 10000;
 typedef array<int, array_size> IntArray;
-
-/*************************************************
- Conver rbb to gray scale
-*/
-float luminance(uint8_t r, uint8_t g, uint8_t b)
-{
-    float r_lin = static_cast<float>(r) / 255.0f;
-    float g_lin = static_cast<float>(g) / 255.0f;
-    float b_lin = static_cast<float>(b) / 255.0f;
-
-    // Perceptual luminance (CIE 1931)
-    return 0.2126f * r_lin + 0.7152f * g_lin + 0.0722f * b_lin;
-    //return r_lin;
-    //return 0.5;
-}
-
-/***************************************************************
- * 
- ****************************************************************/
-void convertToGrayscaleCpp(
-                      const uint8_t *u8_image_in, // input const
-                      vector<float> &fl_gray, // output
-                      int width, int height)
-{
-  try
-  {  
-      for(int idx = 0; idx < (width * height); idx++)
-      {
-        int offset   = 3 * idx;
-        fl_gray[idx] = luminance(u8_image_in[offset],
-            u8_image_in[offset + 1],
-            u8_image_in[offset + 2]);
-      }
-  } catch (std::exception const &e) {
-    cout << "convertToGrayscale exception: " << e.what() << std::endl;
-    terminate();
-  }
-}
-
-/***************************************************************
- * 
- ****************************************************************/
-//void initUint8SyclBuffer(queue &q,
-//                      buffer<uint8_t, 1> &u8_buffer, // input and output
-//                      int width, int height, uint8_t value)
-void initUint8SyclBuffer(queue &q,
-                      vector<uint8_t> &u8_vector, // input and output
-                      int width, int height, uint8_t value)
-{
-  range numItems{width * height};
-
-  buffer u8_buffer(u8_vector);
-  try
-  {  
-      //q.submit([&u8_buffer, width, height, value](
-      //          sycl::handler& h) {
-      q.submit([&](auto &h) {
-      // A discard_write is a write access that doesn't need to preserve existing
-      // memory contents
-      //auto u8 = u8_buffer.get_access<sycl::access::mode::write>(h);
-      accessor u8(u8_buffer, h, write_only, no_init);
-
-      //h.parallel_for(sycl::range<1>(width * height),
-      //              [u8, value](sycl::id<1> idx) {
-      //                  u8[idx[0]] = value;
-      //              });
-      h.parallel_for(numItems, [=](auto idx) {
-                        u8[idx] = value;
-                    });
-      });
-  } catch (std::exception const &e) {
-    cout << "initUint8SyclBuffer exception: " << e.what() << std::endl;
-    terminate();
-  }
-}
-
-/***************************************************************
- * 
- ****************************************************************/
-void initUint8SyclBuffer1(queue &q,
-                      buffer<uint8_t> &u8_buffer, // input and output
-                      //buffer &u8_buffer, // input and output
-                      int width, int height, uint8_t value)
-{
-  range numItems{width * height};
-
-  try
-  {  
-      //q.submit([&u8_buffer, width, height, value](
-      //          sycl::handler& h) {
-      q.submit([&](auto &h) {
-      // A discard_write is a write access that doesn't need to preserve existing
-      // memory contents
-      //auto u8 = u8_buffer.get_access<sycl::access::mode::write>(h);
-      accessor u8(u8_buffer, h, write_only, no_init);
-
-      //h.parallel_for(sycl::range<1>(width * height),
-      //              [u8, value](sycl::id<1> idx) {
-      //                  u8[idx[0]] = value;
-      //              });
-      h.parallel_for(numItems, [=](auto idx) {
-                        u8[idx] = value;
-                    });
-      });
-  } catch (std::exception const &e) {
-    cout << "initUint8SyclBuffer exception: " << e.what() << std::endl;
-    terminate();
-  }
-}
-/***************************************************************
- * 
- ****************************************************************/
-void convertToGrayscale(queue &q,
-                      buffer<uint8_t, 1> &u8_image_in_buffer, // input
-                      buffer<float, 1> &fl_grayscale_buffer, // output
-                      int width, int height)
-{
-  try
-  {  
-      q.submit([&fl_grayscale_buffer, &u8_image_in_buffer, width, height](
-                sycl::handler& h) {
-      auto image = u8_image_in_buffer.get_access<sycl::access::mode::read>(h);
-      // A discard_write is a write access that doesn't need to preserve existing
-      // memory contents
-      auto gray = fl_grayscale_buffer.get_access<sycl::access::mode::discard_write>(h);
-
-      h.parallel_for(sycl::range<1>(width * height),
-                    [image, gray](sycl::id<1> idx) {
-                        int offset   = 3 * idx[0];
-                        gray[idx[0]] = luminance(image[offset],
-                        image[offset + 1],
-                        image[offset + 2]);
-                    });
-      });
-  } catch (std::exception const &e) {
-    cout << "convertToGrayscale exception: " << e.what() << std::endl;
-    terminate();
-  }
-}
-/***************************************************************
- * 
-****************************************************************/
-void convertToUint8Cpp(
-                const vector<float> &fl_in, // input. normalized to 0 ... 1
-                vector<uint8_t> &u8_out,
-                int width, int height)
-{
-  try
-  {  
-    for (int idx = 0; idx < width * height; idx++)
-    {
-      u8_out[idx] = static_cast<uint8_t>(fl_in[idx] * 255.0f);
-    }
-  } catch (std::exception const &e) {
-    cout << "convertToUint8Cpp exception: " << e.what() << std::endl;
-    terminate();
-  }
-}
-
-/***************************************************************
- * 
-****************************************************************/
-void convertToUint8(queue &q, 
-                buffer<float, 1> &fl_in_buffer, // input. normalized to 0 ... 1
-                buffer<uint8_t, 1> &u8_out_buffer,
-                int width, int height)
-{
-  try
-  {  
-      range num_items(width * height);
-      //q.submit([&fl_in_buffer, &u8_out_buffer, width, height](
-      //          sycl::handler& h) 
-      q.submit([&](auto &h)                 
-      {
-        // A discard_write is a write access that doesn't need to preserve existing
-        // memory contents
-        auto fl_in = fl_in_buffer.get_access<sycl::access::mode::read>(h);
-        auto u8_out = u8_out_buffer.get_access<sycl::access::mode::write>(h);
-
-        //h.parallel_for(sycl::range<1>(width * height),
-        h.parallel_for(num_items,
-                      //[fl_in, u8_out](sycl::id<1> idx) {
-                      [=](auto idx) {
-                          //u8_out[idx[0]] = fl_in[idx[0]] * 255;
-                          u8_out[idx] = fl_in[idx] * 255;
-                      });
-      });
-  } catch (std::exception const &e) {
-    cout << "convertToGrayscale exception: " << e.what() << std::endl;
-    terminate();
-  }
-}
 
 //**************************************************************************
 // Demonstrate iota both sequential on CPU and parallel on device.
@@ -344,9 +154,9 @@ int main() {
       
       #ifdef USE_SYCL
         cout << "Using SYCL" << std::endl;
-        convertToGrayscale(sycl_que, u8_image_in_buffer, fl_grayscale_buffer, width, height);
+        ConvertToGrayscaleBuffer(sycl_que, u8_image_in_buffer, fl_grayscale_buffer, width, height);
 
-        convertToUint8(sycl_que, fl_grayscale_buffer, u8_image_out_buffer, width, height);
+        ConvertToUint8Buffer(sycl_que, fl_grayscale_buffer, u8_image_out_buffer, width, height);
         //initUint8SyclBuffer(sycl_que, u8_image_out, width, height, (uint8_t)128);
         //initUint8SyclBuffer1(sycl_que, u8_image_out_buffer, width, height, (uint8_t)128);
 
