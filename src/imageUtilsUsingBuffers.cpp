@@ -12,11 +12,11 @@ using namespace std;
 void ConvertToGrayscaleBuffer(queue &q,
                       buffer<uint8_t, 1> &u8_image_in_buffer, // input
                       buffer<float, 1> &fl_grayscale_buffer, // output
-                      int width, int height)
+                      int width, int height, int numChannels)
 {
   try
   {  
-      q.submit([&fl_grayscale_buffer, &u8_image_in_buffer, width, height](
+      q.submit([&fl_grayscale_buffer, &u8_image_in_buffer, width, height, numChannels](
                 sycl::handler& h) {
       auto image = u8_image_in_buffer.get_access<sycl::access::mode::read>(h);
       // A discard_write is a write access that doesn't need to preserve existing
@@ -24,8 +24,8 @@ void ConvertToGrayscaleBuffer(queue &q,
       auto gray = fl_grayscale_buffer.get_access<sycl::access::mode::discard_write>(h);
 
       h.parallel_for(sycl::range<1>(width * height),
-                    [image, gray](sycl::id<1> idx) {
-                        int offset   = 3 * idx[0];
+                    [image, gray, numChannels](sycl::id<1> idx) {
+                        int offset   = numChannels * idx[0];
                         gray[idx[0]] = luminance(image[offset], image[offset + 1],
                                                  image[offset + 2]);
                     });
@@ -140,7 +140,7 @@ void InitUint8SyclBuffer1(queue &q,
 }
 
 /***************************************************************
- * Sobel Filter implemented has h
+ * Sobel Filter implemented using horizontal and vertical convolutions
  * |1  0 -1|
  * |2  0 -2|
  * |1  0 -1|
@@ -154,6 +154,8 @@ void InitUint8SyclBuffer1(queue &q,
  * |2  0 -2| = |2| * [1  0 -1]
  * |1  0 -1|   |1| 
  * 
+ * Ref: 
+ * https://www.codeproject.com/Articles/5284847/5-Minutes-to-Your-First-oneAPI-App-on-DevCloud
 ****************************************************************/
 void SobelFilter(sycl::queue &queue,
                  sycl::buffer<float, 1> &fl_in_buffer, // a grayscale buffer with 1 channel
@@ -163,8 +165,7 @@ void SobelFilter(sycl::queue &queue,
   sycl::buffer<float, 1> dx{width * height};  // todo make these device only memory
   sycl::buffer<float, 1> dy{width * height};
 
-  // the horizontal convolutio
-  
+  // the horizontal convolution
   {
     // Open a new scope so that dx_tmp is deallocated once no longer needed
     sycl::buffer<float, 1> dx_tmp{width * height};

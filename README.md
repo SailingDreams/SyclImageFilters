@@ -186,10 +186,12 @@ To learn more about the extensions and how to configure the oneAPI environment, 
 
 1. Build the program.
    ```
+   cd build
    nmake cpu-gpu
    ```
 2. Clean the program. (Optional)
    ```
+   cd build
    nmake clean
    ```
 

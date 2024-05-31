@@ -4,7 +4,7 @@
 extern void ConvertToGrayscaleBuffer(sycl::queue &q,
                       sycl::buffer<uint8_t, 1> &u8_image_in_buffer, // input
                       sycl::buffer<float, 1> &fl_grayscale_buffer, // output
-                      int width, int height);
+                      int width, int height, int numChannels);
 
 extern void ConvertToUint8Buffer(sycl::queue &q, 
                 sycl::buffer<float, 1> &fl_in_buffer, // input. normalized to 0 ... 1

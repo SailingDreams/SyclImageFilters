@@ -31,6 +31,8 @@
 #include <windows.h> 
 #include "imageUtilsAgnostic.h"
 #include "imageUtilsUsingBuffers.h"
+#include "imageUtilsUsingCpp.h"
+#include "image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -83,6 +85,8 @@ int main() {
   int width; 
   int height; 
   string path = "..\\images\\peppers.png";
+  //path = "..\\images\\humingBirds.png";
+  path = "..\\images\\Bikesgray.jpg"; // see https://en.wikipedia.org/wiki/Sobel_operator
   const int LOAD_IMAGE_AS_IS = 0;
 
   #if 0
@@ -120,6 +124,8 @@ int main() {
     exit(EXIT_ERROR_CODE);
   }
   cout << "Loaded image " << path << " of width = " << width << ", height = " << height << ", num channels = " << channels << std::endl;
+  string imgWrittenBackOutStr = "image_as_read_in_";
+  imgWrittenBackOutStr += to_string(channels) + "channels.png";
   stbi_write_png("image_as_read_in_3chan.png", width, height, channels, u8_image_in, width * channels);
   
   //uint8_t* u8_out = reinterpret_cast<uint8_t*>(sycl::malloc_shared(width * height, sycl_que));
@@ -143,10 +149,10 @@ int main() {
     buffer u8_image_out_buffer(u8_image_out);
 
     #define USE_SYCL
-    //#undef USE_SYCL
+    #undef USE_SYCL
 
     queue sycl_que(selector, exception_handler);
-
+    
     try {
       //queue q(selector, exception_handler);
 
@@ -156,7 +162,10 @@ int main() {
       
       #ifdef USE_SYCL
         cout << "Using SYCL" << std::endl;
-        ConvertToGrayscaleBuffer(sycl_que, u8_image_in_buffer, fl_grayscale_buffer, width, height);
+
+        // Convert to gray scale range 0 ... 1.0
+        ConvertToGrayscaleBuffer(sycl_que, u8_image_in_buffer, fl_grayscale_buffer, width, height,
+                                 channels);
 
         SobelFilter(sycl_que, fl_grayscale_buffer, fl_sobel_img_buffer,
                     width, height);
@@ -176,21 +185,87 @@ int main() {
   } // End scope for SYCL buffers - causes synchronization with host.
   
   #ifndef USE_SYCL
-    this line is here to create a compile error if USE_SYCL is undefined
+    //this line is here to create a compile error if USE_SYCL is undefined
     cout << "Running C++ version" << std::endl;
-    convertToGrayscaleCpp(u8_image_in, fl_grayscale, width, height);
 
-    convertToUint8Cpp(fl_grayscale, u8_image_out, width, height);
+    // Convert to gray scale range 0 ... 1.0
+    ConvertToGrayscaleCpp(u8_image_in, fl_grayscale, width, height, channels);
+
+    ConvertToUint8Cpp(fl_grayscale, u8_image_out, width, height);
     cout << "Done running C++" << std::endl;
   #endif
+  
+  vector<float> sobelXOut(width * height);
+  vector<float> sobelYOut(width * height);
+  //float sobelXFilter[9] = {0, 0, 0,  
+  //                   0, 1, 0, 
+  //                   0, 0,  0};
+  float sobelXFilter[9] = {1, 0, -1,  
+                     2, 0, -2, 
+                     1, 0,  -1};
+  float sobelYFilter[9] = {1, 2,   1,  
+                     0, 0,   0, 
+                    -1, -2, -1};
 
+  // Convolve the x gradient
+  Convolution3x3Cpp(sobelXOut.data(), fl_grayscale.data(), &sobelXFilter[0], width, height, width, Border::Clamp);
+  // Convolve the y gradient
+  Convolution3x3Cpp(sobelYOut.data(), fl_grayscale.data(), &sobelYFilter[0], width, height, width, Border::Clamp);
+  // Find max of both gradients
+  float maxValX = FindMaxCpp(sobelXOut.data(), width, height);
+  cout << "Max SobelX value = " << maxValX << std::endl;
+  float maxValY = FindMaxCpp(sobelYOut.data(), width, height);
+  cout << "Max SobelY value = " << maxValY << std::endl;
+  // float maxValXY = std::max(maxValX, maxValY); // todo: look up fix in tracker.h to get template version of max()
+  
+  float maxValXY = maxValX < maxValY ? maxValY : maxValX;
+
+  // Normalize both X and Y
+  vector<float> sobelXScaled(width * height);
+  ScaleImgCpp(sobelXOut.data(), sobelXScaled.data(), width, height, 1.0f/maxValXY);
+  vector<float> sobelYScaled(width * height);
+  ScaleImgCpp(sobelYOut.data(), sobelYScaled.data(), width, height, 1.0f/maxValXY);
+
+  //maxVal = FindMaxCpp(sobelXScaled.data(), width, height); // debug
+  //cout << "Max scaled image value = " << maxVal << std::endl;  // debug
+  
+  // Convert to uint8
+  std::vector<uint8_t> u8_imageX_out(width * height);
+  ConvertToUint8Cpp(sobelXScaled, u8_imageX_out, width, height);
+  stbi_write_png("image_sobelX.png", width, height, 1, u8_imageX_out.data(), width);  
+  std::vector<uint8_t> u8_imageY_out(width * height);
+  ConvertToUint8Cpp(sobelYScaled, u8_imageY_out, width, height);
+  stbi_write_png("image_sobelY.png", width, height, 1, u8_imageY_out.data(), width);
+  cout << "Done running C++" << std::endl;
+
+  // Compute magnitude (final step of Sobel)
+  std::vector<float> imageMag(width * height);
+  ComputeMagnitudeCpp(sobelXScaled.data(), sobelYScaled.data(), imageMag, width, height);
+  ConvertToUint8Cpp(imageMag, u8_image_out, width, height); 
+
+#if 0
   // Print out some image values
   cout << "Greyscale image in float" << std::endl;
-  for(int i = 0; i < 10; i++) { cout << fl_grayscale[i] << ", ";}
+  for(int i = 0; i < 15; i++) { cout << fl_grayscale[i] << ", ";}
   cout << std::endl;
-  cout << "Greyscale image in uint8" << std::endl;
-  for(int i = 0; i < 10; i++) { cout << (int)u8_image_out[i] << ", ";}
+  cout << "Greyscale image out uint8" << std::endl;
+  for(int i = 0; i < 15; i++) { cout << (int)u8_image_out[i] << ", ";}
   cout << std::endl;
+
+  cout << "sobelXOut float" << std::endl;
+  for(int i = 0; i < 15; i++) { cout << sobelXOut[i] << ", ";}
+  cout << std::endl;    
+  cout << "u8_imageX_out uint8" << std::endl;
+  for(int i = 0; i < 15; i++) { cout << (int)u8_imageX_out[i] << ", ";}
+  cout << std::endl;
+
+  cout << "sobelYOut float" << std::endl;
+  for(int i = 0; i < 15; i++) { cout << sobelYOut[i] << ", ";}
+  cout << std::endl;  
+  cout << "u8_imageY_out uint8" << std::endl;
+  for(int i = 0; i < 15; i++) { cout << (int)u8_imageY_out[i] << ", ";}
+  cout << std::endl;
+#endif
 
   stbi_write_png("image_grayscale.png", width, height, 1, u8_image_out.data(), width);
   
