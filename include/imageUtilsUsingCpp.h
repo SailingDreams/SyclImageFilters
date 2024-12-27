@@ -38,3 +38,7 @@ void ConvertToUint8Cpp(
 *****************************************************************************/
 Result Convolution3x3Cpp(float* pOut, const float* pIn, const float* pFilter, 
                       int sx, int sy, int pitch, Border border);
+
+void SobelFilterCpp(std::vector<float> &fl_in_buffer, // a grayscale buffer with 1 channel
+                 std::vector<float> &fl_out_buffer,
+                 int width, int height);

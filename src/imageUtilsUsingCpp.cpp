@@ -167,3 +167,73 @@ Result Convolution3x3Cpp(float* pOut, const float* pIn, const float* pFilter,
     }
 return Result::Ok;
 }
+
+/***************************************************************
+ * Sobel Filter implemented using horizontal and vertical convolutions
+ * |1  0 -1|
+ * |2  0 -2|
+ * |1  0 -1|
+ * 
+ * | 1  2  1|
+ * | 0  0  0|
+ * |-1 -2 -1|
+ * 
+ * Seperable version of the above filter
+ * |1  0 -1|   |1|
+ * |2  0 -2| = |2| * [1  0 -1]
+ * |1  0 -1|   |1| 
+ * 
+ * Ref: 
+ * 
+****************************************************************/
+void SobelFilterCpp(std::vector<float> &fl_in_buffer, // a grayscale buffer with 1 channel
+                 std::vector<float> &fl_out_buffer,
+                 int width, int height)
+{
+    vector<float> sobelXGradient(width * height);
+    vector<float> sobelYGradient(width * height);
+    //float sobelXFilter[9] = {0, 0, 0,  
+    //                   0, 1, 0, 
+    //                   0, 0,  0};
+    float sobelXFilter[9] = {1, 0, -1,  
+                        2, 0, -2, 
+                        1, 0,  -1};
+    float sobelYFilter[9] = {1, 2,   1,  
+                        0, 0,   0, 
+                        -1, -2, -1};
+
+    // Convolve the x gradient
+    Convolution3x3Cpp(sobelXGradient.data(), fl_in_buffer.data(), &sobelXFilter[0], width, height, width, Border::Clamp);
+    // Convolve the y gradient
+    Convolution3x3Cpp(sobelYGradient.data(), fl_in_buffer.data(), &sobelYFilter[0], width, height, width, Border::Clamp);
+    // Find max of both gradients
+    float maxValX = FindMaxCpp(sobelXGradient.data(), width, height);
+    //cout << "Max SobelX value = " << maxValX << std::endl;
+    float maxValY = FindMaxCpp(sobelYGradient.data(), width, height);
+    //cout << "Max SobelY value = " << maxValY << std::endl;
+    // float maxValXY = std::max(maxValX, maxValY); // todo: look up fix in tracker.h to get template version of max()
+    
+    float maxValXY = maxValX < maxValY ? maxValY : maxValX;
+
+    // Normalize both X and Y
+    vector<float> sobelXScaled(width * height);
+    ScaleImgCpp(sobelXGradient.data(), sobelXScaled.data(), width, height, 1.0f/maxValXY);
+    vector<float> sobelYScaled(width * height);
+    ScaleImgCpp(sobelYGradient.data(), sobelYScaled.data(), width, height, 1.0f/maxValXY);
+
+    //maxVal = FindMaxCpp(sobelXScaled.data(), width, height); // debug
+    //cout << "Max scaled image value = " << maxVal << std::endl;  // debug
+    
+#if 0
+    // Convert to uint8
+    std::vector<uint8_t> u8_imageX_out(width * height);
+    ConvertToUint8Cpp(sobelXScaled, u8_imageX_out, width, height);
+    stbi_write_png("image_sobelX.png", width, height, 1, u8_imageX_out.data(), width);  
+    std::vector<uint8_t> u8_imageY_out(width * height);
+    ConvertToUint8Cpp(sobelYScaled, u8_imageY_out, width, height);
+    stbi_write_png("image_sobelY.png", width, height, 1, u8_imageY_out.data(), width);
+#endif
+
+    // Compute magnitude (final step of Sobel)
+    ComputeMagnitudeCpp(sobelXScaled.data(), sobelYScaled.data(), fl_out_buffer, width, height);
+}

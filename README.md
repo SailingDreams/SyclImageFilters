@@ -1,4 +1,4 @@
-# `Gaussian Filter` Sample
+# `Sycl Filter` Samples
 
 The `Gaussian Filter` sample demonstrates the image filters methods for using SYCL*-compliant buffers and Unified Shared Memory (USM). Additionally, building and running this sample verifies that your development environment is configured correctly for [Intel® oneAPI Toolkits](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html).
 
@@ -10,7 +10,7 @@ The `Gaussian Filter` sample demonstrates the image filters methods for using SY
 
 ## Purpose
 
-The `Gaussian Filter` sample is a program that reads an image, filters it, and ouputs to a new image. In this sample, you will see how to use the most basic code in C++ language that offloads computations to a GPU, which includes using USM and buffers.
+The `Sycl Filter` sample is a program that reads an image, filters it, and ouputs to a new image. In this sample, you will see how to use the most basic code in C++ language that offloads computations to a GPU, which includes using USM and buffers.
 
 The basic SYCL implementations explained in the sample includes device selector,
 USM, buffer, accessor, kernel, and command groups.
@@ -166,7 +166,7 @@ To learn more about the extensions and how to configure the oneAPI environment, 
    ```
    mkdir build
    cd build
-   cmake -G "NMake Makefiles" .. -DUSM=1
+   cmake -G "NMake Makefiles" .. -DUSM=1        ---> Not available yet
    ```
 
    > **Note**: When building for FPGAs, the default FPGA family will be used (Intel® Agilex® 7).
@@ -195,29 +195,6 @@ To learn more about the extensions and how to configure the oneAPI environment, 
    nmake clean
    ```
 
-#### Build for FPGA
-
->**Note**: Compiling to FPGA hardware on Windows* requires a third-party or custom Board Support Package (BSP) with Windows* support.
-
-1. Compile for FPGA emulation.
-   ```
-   nmake fpga_emu
-   ```
-2. Compile for simulation (fast compile time, targets simulator FPGA device):
-   ```
-   nmake fpga_sim
-   ```
-3. Generate HTML performance reports.
-   ```
-   nmake report
-   ```
-The reports reside at `gaussian_report.prj/reports/report.html`.
-
-4. Clean the program. (Optional)
-   ```
-   nmake clean
-   ```
-
 #### Troubleshooting
 
 If an error occurs, you can get more details by running `make` with
@@ -227,7 +204,7 @@ make VERBOSE=1
 ```
 If you receive an error message, troubleshoot the problem using the **Diagnostics Utility for Intel® oneAPI Toolkits**. The diagnostic utility provides configuration and system checks to help find missing dependencies, permissions errors, and other issues. See the *[Diagnostics Utility for Intel® oneAPI Toolkits User Guide](https://www.intel.com/content/www/us/en/develop/documentation/diagnostic-utility-user-guide/top.html)* for more information on using the utility.
 
-## Run the `Simple Add` Program
+## Run the sample Program
 
 ### On Linux
 
@@ -238,7 +215,7 @@ If you receive an error message, troubleshoot the problem using the **Diagnostic
 2. Run the program for Unified Shared Memory (USM) and buffers.
    ```
    ./gaussian-buffers
-   ./gaussian-usm
+   ./gaussian-usm  -> not available ... yet
    ```
 ### On Windows
 
@@ -248,22 +225,18 @@ If you receive an error message, troubleshoot the problem using the **Diagnostic
 
 2. Run the program for Unified Shared Memory (USM) and buffers.
    ```
-   gaussian-usm.exe
+   gaussian-usm.exe - not available ... yet
    gaussian-buffers.exe
    ```
 
-## Funnind on dev cloud
-   - todo
+## Credits and References
+   - Sobel Sycl version 
+     - Jeremy  C. Ong https://www.codeproject.com/Articles/5284847/5-Minutes-to-Your-First-oneAPI-App-on-DevCloud
+   - C++ Sobel
+     - https://en.wikipedia.org/wiki/Sobel_operator
+   - OneAPI Samples
+     - https://www.intel.com/content/www/us/en/docs/oneapi-base-toolkit/get-started-guide-windows/2024-0/overview.html
+     
 
-## Example Output
-```
-simple-add output snippet changed to:
-Running on device:        Intel(R) Gen9 HD Graphics NEO
-Array size: 10000
-[0]: 0 + 100000 = 100000
-[1]: 1 + 100000 = 100001
-[2]: 2 + 100000 = 100002
-...
-[9999]: 9999 + 100000 = 109999
-Successfully completed on device.
-```
+
+

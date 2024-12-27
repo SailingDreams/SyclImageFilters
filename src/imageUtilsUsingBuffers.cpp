@@ -6,6 +6,37 @@ using namespace sycl;
 using namespace std;
 
 
+int FindMaxValBuffer(sycl::queue &q,
+                      sycl::buffer<uint8_t, 1> &u8_image_in_buffer,
+                      int width, int height, int numChannels)
+{
+  int maxGray = 0;
+
+  sycl::buffer<float, 1> sum_buf{1};
+  try
+  {  
+
+      q.submit([&u8_image_in_buffer, width, height, numChannels, &sum_buf](
+                sycl::handler& h) {
+        auto image_accessor = u8_image_in_buffer.get_access<sycl::access::mode::read>(h);
+      
+        sycl::accessor sum_accessor(sum_buf, h, sycl::write_only, sycl::no_init); // todo how to init to zero
+      
+        h.parallel_for(sycl::range<1>(width * height),
+                    [image_accessor, sum_accessor, numChannels](sycl::id<1> idx) {
+                        int offset   = numChannels * idx[0];
+                        int gray = luminance(image_accessor[offset], image_accessor[offset + 1],
+                                                 image_accessor[offset + 2]);
+                        // ejp todo: finish
+                    });
+      });
+  } catch (std::exception const &e) {
+    cout << "convertToGrayscale exception: " << e.what() << std::endl;
+    terminate();
+  }  
+  return maxGray;
+}                      
+
 /***************************************************************
  * 
 ****************************************************************/

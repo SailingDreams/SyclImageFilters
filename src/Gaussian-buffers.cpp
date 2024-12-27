@@ -29,6 +29,7 @@
 #include <cstring>
 #include <malloc.h>
 #include <windows.h> 
+#include <chrono>
 #include "imageUtilsAgnostic.h"
 #include "imageUtilsUsingBuffers.h"
 #include "imageUtilsUsingCpp.h"
@@ -87,7 +88,11 @@ int main() {
   string path = "..\\images\\peppers.png";
   //path = "..\\images\\humingBirds.png";
   path = "..\\images\\Bikesgray.jpg"; // see https://en.wikipedia.org/wiki/Sobel_operator
+  path = "..\\images\\HummingBirdAtFeeder.png";
   const int LOAD_IMAGE_AS_IS = 0;
+
+  std::chrono::steady_clock::time_point timeBegin;
+  std::chrono::steady_clock::time_point timeEnd;
 
   #if 0
   // Get a handle to the process heap.
@@ -131,10 +136,12 @@ int main() {
   //uint8_t* u8_out = reinterpret_cast<uint8_t*>(sycl::malloc_shared(width * height, sycl_que));
   std::vector<uint8_t> u8_image_out(width * height);
   //array<uint8_t, 512*512> u8_image_out;
-  cout << "u8_image_out size " << u8_image_out.size() << std::endl;  
+  //cout << "u8_image_out size " << u8_image_out.size() << std::endl;  
 
   // Target to hold grayscale image. This constructor indicates that the memory should be allocated by the runtime
   vector<float> fl_grayscale(width * height);
+
+  int numIterations = 100;
 
   { // Set scope for SYCL buffers
 
@@ -149,7 +156,7 @@ int main() {
     buffer u8_image_out_buffer(u8_image_out);
 
     #define USE_SYCL
-    #undef USE_SYCL
+    //#undef USE_SYCL
 
     queue sycl_que(selector, exception_handler);
     
@@ -159,22 +166,30 @@ int main() {
       // Print out the device information used for the kernel code.
       cout << "Running on device: "
           << sycl_que.get_device().get_info<info::device::name>() << "\n";
+      //cout << "Running on platform: "
+      //    << sycl_que.get_device().get_info<info::platform::name>() << "\n";
+      cout << "Local Memory Size: " 
+          << (float)(sycl_que.get_device().get_info<info::device::local_mem_size>())/1024.0f 
+          << " kBytes" << std::endl;
       
       #ifdef USE_SYCL
         cout << "Using SYCL" << std::endl;
-
         // Convert to gray scale range 0 ... 1.0
         ConvertToGrayscaleBuffer(sycl_que, u8_image_in_buffer, fl_grayscale_buffer, width, height,
                                  channels);
 
-        SobelFilter(sycl_que, fl_grayscale_buffer, fl_sobel_img_buffer,
+        timeBegin = std::chrono::steady_clock::now();
+        for(int i = 0; i < numIterations; i++)
+        {
+          SobelFilter(sycl_que, fl_grayscale_buffer, fl_sobel_img_buffer,
                     width, height);
+        }
+        timeEnd = std::chrono::steady_clock::now();
 
         ConvertToUint8Buffer(sycl_que, fl_sobel_img_buffer, u8_image_out_buffer, width, height);
         //ConvertToUint8Buffer(sycl_que, fl_grayscale_buffer, u8_image_out_buffer, width, height);
         //initUint8SyclBuffer(sycl_que, u8_image_out, width, height, (uint8_t)128);
         //initUint8SyclBuffer1(sycl_que, u8_image_out_buffer, width, height, (uint8_t)128);
-
       #endif
 
     } catch (std::exception const &e) {
@@ -185,63 +200,29 @@ int main() {
   } // End scope for SYCL buffers - causes synchronization with host.
   
   #ifndef USE_SYCL
+  
     //this line is here to create a compile error if USE_SYCL is undefined
     cout << "Running C++ version" << std::endl;
-
     // Convert to gray scale range 0 ... 1.0
     ConvertToGrayscaleCpp(u8_image_in, fl_grayscale, width, height, channels);
 
-    ConvertToUint8Cpp(fl_grayscale, u8_image_out, width, height);
+    std::vector<float> imageMag(width * height);
+
+    timeBegin = std::chrono::steady_clock::now();
+    for(int i = 0; i < numIterations; i++)
+    {
+      SobelFilterCpp(fl_grayscale, imageMag, width, height);
+    }
+    timeEnd = std::chrono::steady_clock::now();
+    ConvertToUint8Cpp(imageMag, u8_image_out, width, height); 
+    //ConvertToUint8Cpp(fl_grayscale, u8_image_out, width, height);
     cout << "Done running C++" << std::endl;
   #endif
   
-  vector<float> sobelXOut(width * height);
-  vector<float> sobelYOut(width * height);
-  //float sobelXFilter[9] = {0, 0, 0,  
-  //                   0, 1, 0, 
-  //                   0, 0,  0};
-  float sobelXFilter[9] = {1, 0, -1,  
-                     2, 0, -2, 
-                     1, 0,  -1};
-  float sobelYFilter[9] = {1, 2,   1,  
-                     0, 0,   0, 
-                    -1, -2, -1};
-
-  // Convolve the x gradient
-  Convolution3x3Cpp(sobelXOut.data(), fl_grayscale.data(), &sobelXFilter[0], width, height, width, Border::Clamp);
-  // Convolve the y gradient
-  Convolution3x3Cpp(sobelYOut.data(), fl_grayscale.data(), &sobelYFilter[0], width, height, width, Border::Clamp);
-  // Find max of both gradients
-  float maxValX = FindMaxCpp(sobelXOut.data(), width, height);
-  cout << "Max SobelX value = " << maxValX << std::endl;
-  float maxValY = FindMaxCpp(sobelYOut.data(), width, height);
-  cout << "Max SobelY value = " << maxValY << std::endl;
-  // float maxValXY = std::max(maxValX, maxValY); // todo: look up fix in tracker.h to get template version of max()
-  
-  float maxValXY = maxValX < maxValY ? maxValY : maxValX;
-
-  // Normalize both X and Y
-  vector<float> sobelXScaled(width * height);
-  ScaleImgCpp(sobelXOut.data(), sobelXScaled.data(), width, height, 1.0f/maxValXY);
-  vector<float> sobelYScaled(width * height);
-  ScaleImgCpp(sobelYOut.data(), sobelYScaled.data(), width, height, 1.0f/maxValXY);
-
-  //maxVal = FindMaxCpp(sobelXScaled.data(), width, height); // debug
-  //cout << "Max scaled image value = " << maxVal << std::endl;  // debug
-  
-  // Convert to uint8
-  std::vector<uint8_t> u8_imageX_out(width * height);
-  ConvertToUint8Cpp(sobelXScaled, u8_imageX_out, width, height);
-  stbi_write_png("image_sobelX.png", width, height, 1, u8_imageX_out.data(), width);  
-  std::vector<uint8_t> u8_imageY_out(width * height);
-  ConvertToUint8Cpp(sobelYScaled, u8_imageY_out, width, height);
-  stbi_write_png("image_sobelY.png", width, height, 1, u8_imageY_out.data(), width);
-  cout << "Done running C++" << std::endl;
-
-  // Compute magnitude (final step of Sobel)
-  std::vector<float> imageMag(width * height);
-  ComputeMagnitudeCpp(sobelXScaled.data(), sobelYScaled.data(), imageMag, width, height);
-  ConvertToUint8Cpp(imageMag, u8_image_out, width, height); 
+//auto procTimeNs = std::chrono::duration_cast<std::chrono::nanoseconds>(timeEnd - timeBegin);
+auto procTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin);
+std::cout << "Processing Time " << (float)(procTimeUs.count())/(1000.0f * float(numIterations)) 
+                                << " msec]" << std::endl;
 
 #if 0
   // Print out some image values

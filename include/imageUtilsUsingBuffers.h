@@ -1,6 +1,10 @@
 #include <sycl/sycl.hpp>
 #include <array>
 
+extern int FindMaxValBuffer(sycl::queue &q,
+                      sycl::buffer<uint8_t, 1> &u8_image_in_buffer,
+                      int width, int height, int numChannels);
+
 extern void ConvertToGrayscaleBuffer(sycl::queue &q,
                       sycl::buffer<uint8_t, 1> &u8_image_in_buffer, // input
                       sycl::buffer<float, 1> &fl_grayscale_buffer, // output
