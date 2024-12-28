@@ -82,7 +82,7 @@ The basic steps to build and run a sample using VS Code include:
 To learn more about the extensions and how to configure the oneAPI environment, see the
 *[Using Visual Studio Code with Intel® oneAPI Toolkits User Guide](https://www.intel.com/content/www/us/en/develop/documentation/using-vs-code-with-intel-oneapi/top.html)*.
 
-### On Linux*
+### On Linux* - NOT TESTED
 
 #### Configure the build system
 
@@ -127,7 +127,7 @@ To learn more about the extensions and how to configure the oneAPI environment, 
    make clean
    ```
 
-#### Build for FPGA
+#### Build for FPGA - NOT TESTED
 
 1. Compile for FPGA emulation.
    ```

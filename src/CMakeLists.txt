@@ -5,14 +5,14 @@
 # source code will be compiled
 if(DEFINED USM AND (NOT(USM EQUAL 0)))
     message(STATUS "Using the USM variant.")
-    set(SOURCE_FILE gaussian-usm.cpp)
-    set(TARGET_NAME gaussian-usm)
+    set(SOURCE_FILE Sobel-usm.cpp)
+    set(TARGET_NAME Sobel-usm)
 else()
     set(SOURCE_FILE imageUtilsAgnostic.cpp  
                     imageUtilsUsingCpp.cpp 
                     imageUtilsUsingBuffers.cpp 
-                    gaussian-buffers.cpp )
-    set(TARGET_NAME gaussian-buffers)
+                    Sobel-buffers.cpp )
+    set(TARGET_NAME Sobel-buffers)
 endif()
 
 
