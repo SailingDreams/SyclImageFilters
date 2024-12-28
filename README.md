@@ -1,6 +1,6 @@
 # `Sycl Filter` Samples
 
-The `Gaussian Filter` sample demonstrates the image filters methods for using SYCL*-compliant buffers and Unified Shared Memory (USM). Additionally, building and running this sample verifies that your development environment is configured correctly for [Intel® oneAPI Toolkits](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html).
+The `Sycl Filter` sample demonstrates the image filters methods for using SYCL*-compliant buffers and Unified Shared Memory (USM). Additionally, building and running this sample verifies that your development environment is configured correctly for [Intel® oneAPI Toolkits](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html).
 
 | Property            | Description
 |:---                 |:---
